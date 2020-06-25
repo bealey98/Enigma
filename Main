@@ -1,0 +1,175 @@
+# prints commands when user types 'help'
+def console_help():
+    print("Available commands:")
+    for i in console_operations:
+        print(i)
+
+
+# for addition of new rotors
+def add_rotor():
+    name = input("What do you want to name your rotor?")
+    rotor = input("Enter your rotor equivalent to ABC...XYZ:")
+    for i in range(len(rotor)):
+        if (rotor[i] in rotor[i+1:]) or (len(rotor) != 26):
+            print("Invalid rotor format.")
+            add_rotor()
+    out = []
+    for i in rotor.lower():
+        out.append(ord(i) - 97)
+    turnover = input("Enter turnover point(s): (A,B)").lower()
+
+    rotors[name] = [out, turnover]
+
+
+# helps the user control the plug board mappings
+def plugboard():
+    print(plug_connections)
+    print("Current mappings:")
+    for plug in plug_connections:
+        print(chr(plug[0] + 65) + chr(plug[1] + 65))
+    operation = input("Would you like to add or remove a mapping? (Add/Remove/Clear/Exit)").lower()
+    if operation == "add":
+        plug_add()
+    if operation == "remove":
+        plug_remove()
+    if operation == "clear":
+        plug_clear()
+
+
+def plug_clear():
+    global plug_connections
+    plug_connections = []
+
+
+def plug_add():
+    plug = input("Which two letters do you want to map to each other? (in the form AB)").lower()
+    if len(plug) != 2:
+        print("Please enter plug in the correct format.")
+        plug_add()
+    for i in plug_connections:
+        if (ord(plug[0]) - 97 in i) or (ord(plug[1]) - 97 in i):
+            print("Cannot map a letter more than once on the plugboard.")
+            plug_add()
+    plug_connections.append([ord(plug[0]) - 97, ord(plug[1]) - 97])
+    if input("Would you like to add another plug? (Y/N)").lower() == "y":
+        plug_add()
+
+
+def plug_remove():
+    plug = ord(input("Which letter do you want to remove connecting plugs from?").lower())-97
+    for i in plug_connections:
+        if (i[0] or i[1]) == plug:
+            plug_connections.remove(i)
+    if input("Would you like to remove another plug? (Y/N)").lower() == "y":
+        plug_remove()
+
+# set up the machine for use
+def setup():
+    machine_rotors.clear()
+    starting_pos.clear()
+    ring_settings.clear()
+    # selecting rotors
+    numofrotors = int(input("How many rotors do you want to use?"))
+    print("Available rotors:")
+    for i in rotors:
+        print(i)
+    j = 0
+    print("From right to left:")
+    while j < numofrotors:
+        rotor = input("Which rotor do you want in slot " + str(j+1) + "?")
+        if rotor in rotors:
+            machine_rotors.append(rotors[rotor])
+            j += 1
+        else:
+            print("Invalid input.")
+    for k in range(numofrotors):
+        ring_settings.append(int(input("What is the ring position for rotor " + str(k+1) + "?"))-1)
+    for l in range(numofrotors):
+        starting_pos.append(ord(input("What letter do you want rotor " + str(l+1) + " to start at?").lower()) - 97)
+    print("Available reflectors:")
+    for i in reflectors:
+        print(i)
+    global reflector
+    reflector = reflectors[(input("Which reflector do you want to use?"))]
+
+
+# encoding/decoding
+def encode():
+    message = input("What would you like to encode?").lower()
+    numtext = []
+    for i in range(len(message)):
+        if message[i] == " ":
+            numtext.append(" ")
+        else:
+            numtext.append(ord(message[i]) - 97)
+    coded_msg = ""
+    rotor_positions = list(starting_pos)
+    for j in numtext:
+        if j == " ":
+            coded_msg += " "
+        else:
+            rotor_positions[0] = (rotor_positions[0] + 1) % 26
+            for n in range(1, len(machine_rotors)):
+                if rotor_positions[n - 1] in machine_rotors[n - 1][1]:
+                    rotor_positions[n] = (rotor_positions[n] + 1) % 26
+            signal_pos = j
+            if any(signal_pos in p for p in plug_connections):
+                for m in plug_connections:
+                    if signal_pos in m:
+                        if signal_pos == m[0]:
+                            signal_pos = m[1]
+                            break
+                        else:
+                            signal_pos = m[0]
+                            break
+            for k in range(len(machine_rotors)):
+                signal_pos = (machine_rotors[k][0][(signal_pos + rotor_positions[k] - ring_settings[k]) % 26] - rotor_positions[k] + ring_settings[k]) % 26
+            signal_pos = reflector[signal_pos]
+            for l in range(len(machine_rotors)):
+                signal_pos = (machine_rotors[len(machine_rotors) - l - 1][0].index((signal_pos + rotor_positions[len(machine_rotors) - l - 1] - ring_settings[len(machine_rotors) - l - 1]) % 26) - rotor_positions[len(machine_rotors) - l - 1] + ring_settings[len(machine_rotors) - l - 1]) % 26
+            if any(signal_pos in p for p in plug_connections):
+                for m in plug_connections:
+                    if signal_pos in m:
+                        if signal_pos == m[0]:
+                            coded_msg += chr(m[1] + 65)
+                            break
+                        else:
+                            coded_msg += chr(m[0] + 65)
+                            break
+            else:
+                coded_msg += chr(signal_pos + 65)
+    print(coded_msg)
+    cyphertexts.append(coded_msg)
+
+
+# Historical Military Rotors #
+rotors = {'I': [[4, 10, 12, 5, 11, 6, 3, 16, 21, 25, 13, 19, 14, 22, 24, 7, 23, 20, 18, 15, 0, 8, 1, 17, 2, 9], [17]],
+          'II': [[0, 9, 3, 10, 18, 8, 17, 20, 23, 1, 11, 7, 22, 19, 12, 2, 16, 6, 25, 13, 15, 24, 5, 21, 14, 4], [5]],
+          'III': [[1, 3, 5, 7, 9, 11, 2, 15, 17, 19, 23, 21, 25, 13, 24, 4, 8, 22, 6, 0, 10, 12, 20, 18, 16, 14], [22]],
+          'IV': [[4, 18, 14, 21, 15, 25, 9, 0, 24, 16, 20, 8, 17, 7, 23, 11, 13, 5, 19, 6, 10, 3, 2, 12, 22, 1], [10]],
+          'V': [[21, 25, 1, 17, 6, 8, 19, 24, 20, 15, 18, 3, 13, 7, 11, 23, 0, 22, 12, 9, 16, 14, 5, 4, 2, 10], [0]],
+          'VI': [[9, 15, 6, 21, 14, 20, 12, 5, 24, 16, 1, 4, 13, 7, 25, 17, 3, 10, 0, 18, 23, 11, 8, 2, 19, 22], [0, 13]],
+          'VII': [[13, 25, 9, 7, 6, 17, 2, 23, 12, 24, 18, 22, 1, 14, 20, 5, 0, 8, 21, 11, 15, 4, 10, 16, 3, 19], [0, 13]],
+          'VIII': [[5, 10, 16, 7, 19, 11, 23, 14, 2, 1, 9, 18, 15, 3, 25, 17, 0, 12, 4, 22, 13, 8, 20, 24, 6, 21], [0, 13]],
+          'Beta': [[11, 4, 24, 9, 21, 2, 13, 8, 23, 22, 15, 1, 16, 12, 3, 17, 19, 0, 10, 25, 6, 5, 20, 7, 14, 18], []],
+          'Gamma': [[5, 18, 14, 10, 0, 13, 20, 4, 17, 7, 12, 1, 19, 8, 24, 2, 22, 11, 16, 15, 25, 23, 21, 6, 9, 3], []]}
+reflectors = {'A': [4, 9, 12, 25, 0, 11, 24, 23, 21, 1, 22, 5, 2, 17, 16, 20, 14, 13, 19, 18, 15, 8, 10, 7, 6, 3],
+              'B': [24, 17, 20, 7, 16, 18, 11, 3, 15, 23, 13, 6, 14, 10, 12, 8, 4, 1, 5, 25, 2, 22, 21, 9, 0, 19],
+              'C': [5, 21, 15, 9, 8, 0, 14, 24, 4, 3, 17, 25, 23, 22, 6, 2, 19, 10, 20, 16, 18, 1, 13, 12, 7, 11],
+              'B Thin': [4, 13, 10, 16, 0, 20, 24, 22, 9, 8, 2, 14, 15, 1, 11, 12, 3, 23, 25, 21, 5, 19, 7, 17, 6, 18],
+              'C Thin': [17, 3, 14, 1, 9, 13, 19, 10, 21, 4, 7, 12, 11, 5, 2, 22, 25, 0, 23, 6, 24, 8, 15, 18, 20, 16]}
+machine_rotors = []
+plug_connections = []
+starting_pos = []
+ring_settings = []
+cyphertexts = []
+
+console_operations = {'help': console_help, 'add rotor': add_rotor, 'plugboard': plugboard, 'setup': setup,
+                      'encode': encode}
+while True:
+    cmd = input("Enter Command:").lower()
+    if cmd in console_operations:
+        command = console_operations[cmd]
+        command()
+    else:
+        print("Command not recognised.")
